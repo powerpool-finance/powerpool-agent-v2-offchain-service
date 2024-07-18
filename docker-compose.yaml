@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  agent-dev:
+    image: powerpool/power-agent-node:dev
+    restart: always
+    depends_on:
+      - offchain-service
+    volumes:
+      - ./config:/usr/app/config
+      - ./keys:/usr/app/keys
+    ports:
+      - "8099:8099"
+    environment:
+      NODE_ENV: ${NODE_ENV}
+
+  offchain-service:
+    container_name: offchain-service
+    build: .
+    restart: always
+    volumes:
+      - ./scriptsBuild:/scriptsBuild:ro
+      - ./scriptsFetched:/scriptsFetched
+      - ./scriptToExecute:/scriptToExecute
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "3423:3423"
+    environment:
+      DOCKER_MODE: 1
+
+  temp-executor:
+    image: node:18-alpine

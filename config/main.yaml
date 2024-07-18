@@ -1,0 +1,15 @@
+networks:
+  enabled:
+    - gnosis
+  details:
+    gnosis:
+      rpc: 'ws://142.132.192.32:18545'
+      block_logs_mode: true
+      agents:
+        '0x071412e301C2087A4DAA055CF4aFa2683cE1e499':
+          data_source: subgraph
+          subgraph_url: https://api.studio.thegraph.com/proxy/48711/ppav2-rd-gnosis-b12-ui/version/latest
+          executor: pga
+          keeper_worker_address: '0x840ccc99c425edcafebb0e7ccac022cd15fd49ca'
+          key_pass: 'PowerPool#TheGreat'
+          accrue_reward: false
