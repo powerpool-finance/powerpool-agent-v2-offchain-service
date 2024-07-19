@@ -4,7 +4,7 @@ The Power Agent network supports various jobs for automatic execution, including
 
 The PowerAgent V2 Off-chain service executes these scripts from IPFS hashes within Docker containers, returning the transaction data. This service uses Node.js with Express for handling HTTP requests, IPFS for script storage, and Docker for isolated execution.
 
-![Off-chain service](https://github.com/user-attachments/assets/d166593f-055b-416e-8e13-cdb1048d1225)
+![Off-chain service](images/off-chain-service-diagram.png)
 
 ## Run PowerAgent V2 Off-chain service
 
