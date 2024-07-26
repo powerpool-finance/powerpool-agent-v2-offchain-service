@@ -309,7 +309,7 @@ const g = new ProofGenerator("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 		const [subscriptionId, requestAtBlock, requestAtBlockHash, requestId, requestNonce, numbRandomWords, callbackGasLimit] = await consumer.getRequestData();
 		console.log('requestAtBlock', requestAtBlock, 'requestAtBlockHash', requestAtBlockHash, 'requestId', requestId);
 		console.log('agentAddress', agentAddress, 'resolverContractAddress', resolverContractAddress, 'subscriptionId', subscriptionId, 'requestNonce', requestNonce);
-		const seed = g.getPreSeed(agentAddress, resolverContractAddress, subscriptionId, requestNonce);
+		const seed = g.getPreSeed(resolverContractAddress, resolverContractAddress, subscriptionId, requestNonce);
 		console.log('seed', seed);
 
 		const {hash: publicKeyHash} = await fetch(`${agentApiHost}/api/v1/public-key-hash/${params.from}`).then(r => r.json());
