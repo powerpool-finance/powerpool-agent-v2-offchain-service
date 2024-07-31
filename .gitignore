@@ -3,3 +3,4 @@ node_modules
 keys
 scriptToExecute
 scriptsBuild
+ipfs-data

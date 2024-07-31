@@ -1,20 +1,23 @@
-import { CID } from 'multiformats/cid';
-import { sha256 } from 'multiformats/hashes/sha2';
 import {ethers} from 'ethers';
 import fs from "fs";
 import BN from 'bn.js';
 
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import Ipfs from "./ipfs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-async function stringToIpfsHash(str): Promise<string> {
-    const code = 0x55;
-    const bytes = new TextEncoder().encode(str);
-    return sha256.digest(bytes).then(res => CID.createV1(code, res)).then(cid => cid.toString());
-}
+// async function stringToIpfsHash(str): Promise<string> {
+//     const code = 0x55;
+//     const bytes = new TextEncoder().encode(str);
+//     return sha256.digest(bytes).then(res => CID.createV1(code, res)).then(cid => cid.toString());
+// }
+// async function fileToIpfsHash(path): Promise<string> {
+//     const code = 0x55;
+//     return sha256.digest(fs.readFileSync(path)).then(res => CID.createV1(code, res)).then(cid => cid.toString());
+// }
 
 function isIpfsHash(value) {
     return true;
@@ -83,7 +86,7 @@ function getDirPath(dirName) {
     return dirName === 'scriptsBuild' ? `${__dirname}/${dirName}` : basePath() + `/${dirName}`;
 }
 
-async function writeScriptsPathToDir(scriptPathByIpfsHash, dirName) {
+async function writeScriptsPathToDir(ipfs: Ipfs, scriptPathByIpfsHash, dirName) {
     const scriptsDir = getDirPath(dirName);
     console.log('writeScriptsPathToDir scriptsDir', scriptsDir);
     if (!fs.existsSync(scriptsDir)) {
@@ -94,15 +97,14 @@ async function writeScriptsPathToDir(scriptPathByIpfsHash, dirName) {
     for (let i = 0; i < localScripts.length; i++) {
         const fileName = localScripts[i];
         const scriptPath = `${scriptsDir}/${fileName}`;
-        const fileContent = fs.readFileSync(scriptPath, {encoding: 'utf8'});
-        scriptPathByIpfsHash[await stringToIpfsHash(fileContent)] = `${getDirPath(dirName)}/${fileName}`;
+        scriptPathByIpfsHash[await ipfs.saveFile(scriptPath)] = `${getDirPath(dirName)}/${fileName}`;
     }
 }
 
 export {
     getDirPath,
     writeScriptsPathToDir,
-    stringToIpfsHash,
+    // stringToIpfsHash,
     isIpfsHash,
     toByteArray,
     hashOfPubKey,
