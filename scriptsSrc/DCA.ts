@@ -7,6 +7,7 @@ const { Contract, Interface, WebSocketProvider, JsonRpcProvider, formatUnits, fo
 	const params = JSON.parse(process.argv[2]);
 	const {agent: agentAddress, resolverContractAddress, resolverCalldata, rpcUrl, chainId, from} = params;
 	const agentApiHost = process.env.AGENT_API_HOST || 'http://localhost:8099';
+	const dlnApiHost = process.env.DLN_API_HOST || 'https://api.dln.trade';
 	console.log('agentApiHost', agentApiHost);
 
 	try {
@@ -32,7 +33,7 @@ const { Contract, Interface, WebSocketProvider, JsonRpcProvider, formatUnits, fo
 			if (parseInt(order.executedAt.toString()) + parseInt(order.buyPeriod.toString()) > curTimestamp) {
 				continue;
 			}
-			quote = await fetch(`https://api.dln.trade/v1.0/dln/order/quote?${new URLSearchParams({
+			quote = await fetch(`${dlnApiHost}/v1.0/dln/order/quote?${new URLSearchParams({
 				srcChainId: chainId,
 				srcChainTokenIn: order.tokenData.tokenToSell,
 				srcChainTokenInAmount: order.tokenData.amountToSell,
@@ -53,7 +54,7 @@ const { Contract, Interface, WebSocketProvider, JsonRpcProvider, formatUnits, fo
 			orderToExecute = order;
 		}
 
-		const txToExecute = await fetch(`https://api.dln.trade/v1.0/dln/order/create-tx?${new URLSearchParams({
+		const txToExecute = await fetch(`${dlnApiHost}/v1.0/dln/order/create-tx?${new URLSearchParams({
 			srcChainId: chainId,
 			srcChainTokenIn: orderToExecute.tokenData.tokenToSell,
 			srcChainTokenInAmount: orderToExecute.tokenData.amountToSell,
