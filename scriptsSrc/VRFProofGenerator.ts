@@ -304,12 +304,12 @@ const g = new ProofGenerator("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 			provider = new JsonRpcProvider(rpcUrl, chainId);
 		}
 
-		const consumerAbi = JSON.parse('[{"inputs":[],"name":"getRequestData","outputs":[{"internalType":"uint256","name":"subscriptionId","type":"uint256"},{"internalType":"uint256","name":"requestAtBlock","type":"uint256"},{"internalType":"bytes32","name":"requestAtBlockHash","type":"bytes32"},{"internalType":"uint256","name":"requestId","type":"uint256"},{"internalType":"uint64","name":"requestNonce","type":"uint64"},{"internalType":"uint32","name":"numbRandomWords","type":"uint32"},{"internalType":"uint32","name":"callbackGasLimit","type":"uint32"}],"stateMutability":"view","type":"function"}]');
+		const consumerAbi = JSON.parse('[{"inputs":[],"name":"getRequestData","outputs":[{"name":"agent","type":"address","internalType":"address"},{"name":"subscriptionId","type":"uint256","internalType":"uint256"},{"name":"requestAtBlock","type":"uint256","internalType":"uint256"},{"name":"requestAtBlockHash","type":"bytes32","internalType":"bytes32"},{"name":"requestId","type":"uint256","internalType":"uint256"},{"name":"requestNonce","type":"uint64","internalType":"uint64"},{"name":"numbRandomWords","type":"uint32","internalType":"uint32"},{"name":"callbackGasLimit","type":"uint32","internalType":"uint32"}],"stateMutability":"view","type":"function"}]');
 		const consumer = new Contract(resolverContractAddress, consumerAbi, provider);
-		const [subscriptionId, requestAtBlock, requestAtBlockHash, requestId, requestNonce, numbRandomWords, callbackGasLimit] = await consumer.getRequestData();
+		const [requestAgentAddress, subscriptionId, requestAtBlock, requestAtBlockHash, requestId, requestNonce, numbRandomWords, callbackGasLimit] = await consumer.getRequestData();
 		console.log('requestAtBlock', requestAtBlock, 'requestAtBlockHash', requestAtBlockHash, 'requestId', requestId);
 		console.log('agentAddress', agentAddress, 'resolverContractAddress', resolverContractAddress, 'subscriptionId', subscriptionId, 'requestNonce', requestNonce);
-		const seed = g.getPreSeed(agentAddress, resolverContractAddress, subscriptionId, requestNonce);
+		const seed = g.getPreSeed(requestAgentAddress, resolverContractAddress, subscriptionId, requestNonce);
 		console.log('seed', seed);
 
 		const {hash: publicKeyHash} = await fetch(`${agentApiHost}/api/v1/public-key-hash/${params.from}`).then(r => r.json());
