@@ -72,9 +72,6 @@ export async function runService(_port?) {
         fs.cpSync(scriptPathByIpfsHash[resolverIpfsHash], `${scriptToExecutePath}/index.cjs`);
 
         const scriptData = {...req.body, ...req.params};
-        if (!parseInt(process.env.COMPOSE_MODE)) {
-            scriptData['rpcUrl'] = rpcUrl.replace('127.0.0.1', 'host.docker.internal');
-        }
 
         console.log('startContainer');
         let finished = false, overTimeout = null;
@@ -135,6 +132,10 @@ export async function runService(_port?) {
 async function startContainer(containers, params, onStdOut) {
     const AGENT_API_PORT = process.env.AGENT_API_PORT || 8099;
     const COMPOSE_MODE = parseInt(process.env.COMPOSE_MODE);
+    const OFFCHAIN_INTERNAL_HOST = process.env.OFFCHAIN_INTERNAL_HOST || 'host.docker.internal';
+    if (!COMPOSE_MODE) {
+        params['rpcUrl'] = params['rpcUrl'].replace('127.0.0.1', OFFCHAIN_INTERNAL_HOST);
+    }
     const beforeStart = Date.now();
     const serviceContainer = containers.filter(c => c.Image.includes('offchain-service'))[0];
     const agentContainer = containers.filter(c => c.Image.includes('power-agent-node'))[0];
@@ -156,7 +157,7 @@ async function startContainer(containers, params, onStdOut) {
         Volumes: {
             '/scriptToExecute': {}
         },
-        Env: COMPOSE_MODE ? [`AGENT_API_HOST=http:/${agentContainer.Names[0]}:${AGENT_API_PORT}`] : ['AGENT_API_HOST=http://host.docker.internal:' + AGENT_API_PORT],
+        Env: COMPOSE_MODE ? [`AGENT_API_HOST=http:/${agentContainer.Names[0]}:${AGENT_API_PORT}`] : [`AGENT_API_HOST=http://${OFFCHAIN_INTERNAL_HOST}:${AGENT_API_PORT}`],
         HostConfig: {
             // NetworkMode: COMPOSE_MODE ? "container:" + agentContainer.Id : 'host',
             NetworkMode: COMPOSE_MODE ? agentContainer.HostConfig.NetworkMode : 'host',
