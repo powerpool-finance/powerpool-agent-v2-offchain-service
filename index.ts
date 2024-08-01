@@ -42,6 +42,15 @@ export async function runService(_port?) {
     service.use(bodyParser.json());
     service.use(bodyParser.urlencoded({extended: true}));
 
+    const scriptToExecutePath = getDirPath('scriptToExecute');
+    if (!fs.existsSync(scriptToExecutePath)) {
+        fs.mkdirSync(scriptToExecutePath);
+    }
+    const localScripts = fs.readdirSync(scriptToExecutePath);
+    for (let i = 0; i < localScripts.length; i++) {
+        fs.unlinkSync(`${scriptToExecutePath}/${localScripts[i]}`);
+    }
+
     service.post('/offchain-resolve/:resolverContractAddress', async (req, res) => {
         const {resolverCalldata, rpcUrl, network, chainId, agent, from, jobAddress, jobId} = req.body;
 
@@ -61,22 +70,15 @@ export async function runService(_port?) {
             return res.send(500, "Content not found in IPFS by hash: " + resolverIpfsHash);
         }
 
-        const scriptToExecutePath = getDirPath('scriptToExecute');
-        if (!fs.existsSync(scriptToExecutePath)) {
-            fs.mkdirSync(scriptToExecutePath);
-        }
-        const localScripts = fs.readdirSync(scriptToExecutePath);
-        for (let i = 0; i < localScripts.length; i++) {
-            fs.unlinkSync(`${scriptToExecutePath}/${localScripts[i]}`);
-        }
-        fs.cpSync(scriptPathByIpfsHash[resolverIpfsHash], `${scriptToExecutePath}/index.cjs`);
+        fs.cpSync(scriptPathByIpfsHash[resolverIpfsHash], `${scriptToExecutePath}/${resolverIpfsHash}.cjs`);
 
         const scriptData = {...req.body, ...req.params};
 
-        console.log('startContainer');
         let finished = false, overTimeout = null;
         const maxExecutionSeconds = process.env.MAX_EXECUTION_TIME ? parseInt(process.env.MAX_EXECUTION_TIME, 10) : 30;
-        const {container} = await startContainer(containers, scriptData,  (chunk: Buffer, error: Buffer) => {
+        console.log('startContainer, maxExecutionSeconds:', maxExecutionSeconds);
+
+        const {container} = await startContainer(resolverIpfsHash, containers, scriptData,  (chunk: Buffer, error: Buffer) => {
             if (error) {
                 executionFinished();
                 console.log('stdError:', error.toString());
@@ -98,6 +100,7 @@ export async function runService(_port?) {
         });
 
         overTimeout = setTimeout(() => {
+            console.log('overTimeout, jobAddress:', jobAddress, 'finished:', finished);
             if (finished) {
                 return;
             }
@@ -106,6 +109,7 @@ export async function runService(_port?) {
         }, maxExecutionSeconds * 1000);
 
         async function executionFinished() {
+            console.log('executionFinished, jobAddress:', jobAddress);
             finished = true;
             overTimeout && clearTimeout(overTimeout);
 
@@ -129,7 +133,7 @@ export async function runService(_port?) {
 }
 
 
-async function startContainer(containers, params, onStdOut) {
+async function startContainer(ipfsHash, containers, params, onStdOut) {
     const AGENT_API_PORT = process.env.AGENT_API_PORT || 8099;
     const COMPOSE_MODE = parseInt(process.env.COMPOSE_MODE);
     const OFFCHAIN_INTERNAL_HOST = process.env.OFFCHAIN_INTERNAL_HOST || 'host.docker.internal';
@@ -175,7 +179,7 @@ async function startContainer(containers, params, onStdOut) {
         ExposedPorts: {
             // '80/tcp': {}
         },
-        Cmd: [`node`, `/scriptToExecute/index.cjs`, JSON.stringify(params)]
+        Cmd: [`node`, `/scriptToExecute/${ipfsHash}.cjs`, JSON.stringify(params)]
     });
 
     const stream = await container.attach({ stream: true, stdout: true, stderr: true });
