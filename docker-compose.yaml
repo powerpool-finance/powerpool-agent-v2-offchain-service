@@ -4,6 +4,8 @@ services:
   agent-dev:
     image: powerpool/power-agent-node:dev
     restart: always
+    networks:
+      - default
     depends_on:
       - offchain-service
     volumes:
@@ -17,6 +19,11 @@ services:
   offchain-service:
     container_name: offchain-service
     build: .
+    networks:
+      - default
+      - ipfs_net
+    depends_on:
+      - temp-executor
     restart: always
     volumes:
       - ./scriptsBuild:/scriptsBuild:ro
@@ -26,7 +33,33 @@ services:
     ports:
       - "3423:3423"
     environment:
-      DOCKER_MODE: 1
+      COMPOSE_MODE: 1
+
+  ipfs:
+    image: "ipfs/kubo:v0.29.0"
+    networks:
+      ipfs_net:
+        aliases:
+          - ipfs-service
+    depends_on:
+      - offchain-service
+    restart: always
+    environment:
+      - IPFS_PROFILE
+    entrypoint: ["/bin/sh", "-c", "ipfs init; ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001 && ipfs daemon"]
+    ports:
+      - "4001:4001"
+      - "8080:8080"
+      - "5001:5001"
+    volumes:
+      - "${IPFS_EXPORT:-./ipfs-export}:/export"
+      - "${IPFS_DATA:-./ipfs-data}:/data/ipfs"
 
   temp-executor:
     image: node:18-alpine
+
+networks:
+  ipfs_net:
+    internal: true
+  default:
+    driver: bridge

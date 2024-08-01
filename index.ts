@@ -16,17 +16,40 @@ export async function runService(_port?) {
     const port = _port || 3423;
 
     const scriptsBuildDir = 'scriptsBuild', scriptsFetchedDir = 'scriptsFetched';
-    await writeScriptsPathToDir(scriptPathByIpfsHash, scriptsBuildDir);
-    await writeScriptsPathToDir(scriptPathByIpfsHash, scriptsFetchedDir);
-    console.log('scriptPathByIpfsHash', scriptPathByIpfsHash);
+
+    const containers = await docker.listContainers();
+    // const ipfsContainer = containers.filter(c => c.Image.indexOf('ipfs') === 0)[0];
+    // console.log('ipfsContainer', JSON.stringify(ipfsContainer, null, 2));
 
     const ipfs = new Ipfs();
-    await ipfs.init();
+    let ipfsError;
+    do {
+        try {
+            await ipfs.init(`http://ipfs-service`);
+            await writeScriptsPathToDir(ipfs, scriptPathByIpfsHash, scriptsBuildDir);
+            await writeScriptsPathToDir(ipfs, scriptPathByIpfsHash, scriptsFetchedDir);
+            ipfsError = null;
+        } catch (e) {
+            ipfsError = e;
+            console.error('IPFS connection error:', e, 'trying to reconnect...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    } while (!!ipfsError);
+    console.log('scriptPathByIpfsHash', scriptPathByIpfsHash);
 
     const service = express();
     service.use(morgan('combined'));
     service.use(bodyParser.json());
     service.use(bodyParser.urlencoded({extended: true}));
+
+    const scriptToExecutePath = getDirPath('scriptToExecute');
+    if (!fs.existsSync(scriptToExecutePath)) {
+        fs.mkdirSync(scriptToExecutePath);
+    }
+    const localScripts = fs.readdirSync(scriptToExecutePath);
+    for (let i = 0; i < localScripts.length; i++) {
+        fs.unlinkSync(`${scriptToExecutePath}/${localScripts[i]}`);
+    }
 
     service.post('/offchain-resolve/:resolverContractAddress', async (req, res) => {
         const {resolverCalldata, rpcUrl, network, chainId, agent, from, jobAddress, jobId} = req.body;
@@ -47,44 +70,15 @@ export async function runService(_port?) {
             return res.send(500, "Content not found in IPFS by hash: " + resolverIpfsHash);
         }
 
-        const scriptToExecutePath = getDirPath('scriptToExecute');
-        if (!fs.existsSync(scriptToExecutePath)) {
-            fs.mkdirSync(scriptToExecutePath);
-        }
-        const localScripts = fs.readdirSync(scriptToExecutePath);
-        for (let i = 0; i < localScripts.length; i++) {
-            fs.unlinkSync(`${scriptToExecutePath}/${localScripts[i]}`);
-        }
-
-        fs.cpSync(scriptPathByIpfsHash[resolverIpfsHash], `${scriptToExecutePath}/index.cjs`);
+        fs.cpSync(scriptPathByIpfsHash[resolverIpfsHash], `${scriptToExecutePath}/${resolverIpfsHash}.cjs`);
 
         const scriptData = {...req.body, ...req.params};
-        if (!parseInt(process.env.COMPOSE_MODE)) {
-            scriptData['rpcUrl'] = rpcUrl.replace('127.0.0.1', 'host.docker.internal');
-        }
 
-        console.log('startContainer');
         let finished = false, overTimeout = null;
-        async function executionFinished() {
-            finished = true;
-            overTimeout && clearTimeout(overTimeout);
-
-            return new Promise((resolve) => {
-                setTimeout(async () => {
-                    try {
-                        const {State} = await container.inspect();
-                        if (State.Running) {
-                            container.kill();
-                        }
-                    } catch (e) {
-                        console.error('Container kills error', e);
-                    }
-                    resolve(null);
-                }, 100);
-            })
-        }
         const maxExecutionSeconds = process.env.MAX_EXECUTION_TIME ? parseInt(process.env.MAX_EXECUTION_TIME, 10) : 30;
-        const {container} = await startContainer(scriptData,  (chunk: Buffer, error: Buffer) => {
+        console.log('startContainer, maxExecutionSeconds:', maxExecutionSeconds);
+
+        const {container} = await startContainer(resolverIpfsHash, containers, scriptData,  (chunk: Buffer, error: Buffer) => {
             if (error) {
                 executionFinished();
                 console.log('stdError:', error.toString());
@@ -106,24 +100,47 @@ export async function runService(_port?) {
         });
 
         overTimeout = setTimeout(() => {
+            console.log('overTimeout, jobAddress:', jobAddress, 'finished:', finished);
             if (finished) {
                 return;
             }
             executionFinished();
             return res.send(500, `Max execution time: ${maxExecutionSeconds} seconds`);
         }, maxExecutionSeconds * 1000);
-    });
 
+        async function executionFinished() {
+            console.log('executionFinished, jobAddress:', jobAddress);
+            finished = true;
+            overTimeout && clearTimeout(overTimeout);
+
+            return new Promise((resolve) => {
+                setTimeout(async () => {
+                    try {
+                        const {State} = await container.inspect();
+                        if (State.Running) {
+                            container.kill();
+                        }
+                    } catch (e) {
+                        console.error('Container kills error', e);
+                    }
+                    resolve(null);
+                }, 100);
+            })
+        }
+    });
     console.log('service.listen', port);
     return service.listen(port);
 }
 
 
-async function startContainer(params, onStdOut) {
+async function startContainer(ipfsHash, containers, params, onStdOut) {
     const AGENT_API_PORT = process.env.AGENT_API_PORT || 8099;
     const COMPOSE_MODE = parseInt(process.env.COMPOSE_MODE);
+    const OFFCHAIN_INTERNAL_HOST = process.env.OFFCHAIN_INTERNAL_HOST || 'host.docker.internal';
+    if (!COMPOSE_MODE) {
+        params['rpcUrl'] = params['rpcUrl'].replace('127.0.0.1', OFFCHAIN_INTERNAL_HOST);
+    }
     const beforeStart = Date.now();
-    const containers = await docker.listContainers();
     const serviceContainer = containers.filter(c => c.Image.includes('offchain-service'))[0];
     const agentContainer = containers.filter(c => c.Image.includes('power-agent-node'))[0];
 
@@ -133,6 +150,9 @@ async function startContainer(params, onStdOut) {
     // Can't see stream when perform container.exec on later point of time.
     stdoutStream.on('data', d => onStdOut(d));
     stderrStream.on('data', d => onStdOut(null, d));
+    const scriptToExecutePath = COMPOSE_MODE ? serviceContainer.Mounts.filter(m => m.Destination === '/scriptToExecute')[0].Source : getDirPath('scriptToExecute');
+    // console.log('serviceContainer.Mounts', serviceContainer.Mounts);
+    // console.log('scriptToExecutePath', scriptToExecutePath);
 
     const container = await docker.createContainer({
         Image: 'node:18-alpine',
@@ -141,7 +161,7 @@ async function startContainer(params, onStdOut) {
         Volumes: {
             '/scriptToExecute': {}
         },
-        Env: COMPOSE_MODE ? [`AGENT_API_HOST=http:/${agentContainer.Names[0]}:${AGENT_API_PORT}`] : ['AGENT_API_HOST=http://host.docker.internal:' + AGENT_API_PORT],
+        Env: COMPOSE_MODE ? [`AGENT_API_HOST=http:/${agentContainer.Names[0]}:${AGENT_API_PORT}`] : [`AGENT_API_HOST=http://${OFFCHAIN_INTERNAL_HOST}:${AGENT_API_PORT}`],
         HostConfig: {
             // NetworkMode: COMPOSE_MODE ? "container:" + agentContainer.Id : 'host',
             NetworkMode: COMPOSE_MODE ? agentContainer.HostConfig.NetworkMode : 'host',
@@ -150,7 +170,7 @@ async function startContainer(params, onStdOut) {
                 {
                     Type: 'bind',
                     Name: 'scriptToExecute',
-                    Source: COMPOSE_MODE ? serviceContainer.Mounts.filter(m => m.Destination === '/scriptToExecute')[0].Source : getDirPath('scriptToExecute'),
+                    Source: scriptToExecutePath,
                     Target: '/scriptToExecute',
                     ReadOnly: true,
                 },
@@ -159,7 +179,7 @@ async function startContainer(params, onStdOut) {
         ExposedPorts: {
             // '80/tcp': {}
         },
-        Cmd: [`node`, `/scriptToExecute/index.cjs`, JSON.stringify(params)]
+        Cmd: [`node`, `/scriptToExecute/${ipfsHash}.cjs`, JSON.stringify(params)]
     });
 
     const stream = await container.attach({ stream: true, stdout: true, stderr: true });

@@ -10,7 +10,9 @@ const rpcMockServicePort = 7654;
 
 describe('Container Execution', function () {
     before(async () => {
-        await runService(offchainServicePort);
+        try {
+            await runService(offchainServicePort);
+        } catch (e) { }
     });
     after(async () => {
         process.exit();
@@ -29,9 +31,11 @@ describe('Container Execution', function () {
         service.listen(rpcMockServicePort);
 
         const consumer = '0x178dC8584eaf23642aF9014116043277eC3E79be';
+        const offchainUrl = `http://localhost:${offchainServicePort}/offchain-resolve/${consumer}`;
+        console.log('offchainUrl', offchainUrl);
 
-        const result = await axios.post(`http://localhost:${offchainServicePort}/offchain-resolve/${consumer}`, {
-            resolverCalldata: ethers.hexlify(ethers.toUtf8Bytes('bafkreicg6im5dugbrrh2v5vib25unpowbts5gwlmzwnzbplrwrsxldgvfe')),
+        const result = await axios.post(offchainUrl, {
+            resolverCalldata: ethers.hexlify(ethers.toUtf8Bytes('bafkreig3k5d6uhom5gc5mmzl4bdss4ya3zrcqu5x7uthphqzd5jowmnnr4')),
             rpcUrl: `http://127.0.0.1:${rpcMockServicePort}/`,
             network: null,
             chainId: null,
