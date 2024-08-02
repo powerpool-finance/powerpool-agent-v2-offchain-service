@@ -31,7 +31,7 @@ export async function runService(_port?) {
             ipfsError = null;
         } catch (e) {
             ipfsError = e;
-            console.error('IPFS connection error:', e, 'trying to reconnect...');
+            console.error('IPFS connection error:', e.message, 'trying to reconnect...');
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
     } while (!!ipfsError);
@@ -71,6 +71,7 @@ export async function runService(_port?) {
         }
 
         fs.cpSync(scriptPathByIpfsHash[resolverIpfsHash], `${scriptToExecutePath}/${resolverIpfsHash}.cjs`);
+        console.log(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`, 'exists', fs.existsSync(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`));
 
         const scriptData = {...req.body, ...req.params};
 

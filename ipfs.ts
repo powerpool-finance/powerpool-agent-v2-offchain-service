@@ -47,8 +47,8 @@ export default class Ipfs {
         try {
             const response = await axios.post(`${this.gatewayUrl}:5001/api/v0/add?cid-version=1`, formData, {
                 headers: formData.getHeaders(),
-                maxContentLength: Infinity,
-                maxBodyLength: Infinity
+                maxContentLength: 2e6,
+                timeout: 20000,
             } as Object);
             if (!response.data.Hash) {
                 throw new Error(`HTTP error! status: ${response.status}, response: ${JSON.stringify(response.data)}`);
@@ -73,7 +73,11 @@ export default class Ipfs {
         const path = `${dirName}/${ipfsHash}.cjs`;
         const writer = fs.createWriteStream(path);
         return axios
-            .post(`${this.gatewayUrl}:5001/api/v0/cat?arg=${ipfsHash}`, {}, {responseType: 'stream'})
+            .post(`${this.gatewayUrl}:5001/api/v0/cat?arg=${ipfsHash}`, {}, {
+                responseType: 'stream',
+                maxContentLength: 2e6,
+                timeout: 20000,
+            })
             .then(async response => {
                 response.data.pipe(writer);
                 await finished(writer); //this is a Promise
