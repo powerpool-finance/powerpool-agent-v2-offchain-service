@@ -79,7 +79,7 @@ function hashOfPrivateKey(wallet) {
 }
 
 function basePath() {
-    return (process.env.DOCKER_MODE ? '' : `${__dirname}`);
+    return (process.env.COMPOSE_MODE ? '' : `${__dirname}`);
 }
 
 function getDirPath(dirName) {
