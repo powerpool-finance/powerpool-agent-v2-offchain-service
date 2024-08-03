@@ -25,7 +25,7 @@ export async function runService(_port?) {
         }
         const localScripts = fs.readdirSync(dirPath);
         for (let i = 0; i < localScripts.length; i++) {
-            fs.unlinkSync(join(scriptToExecutePath, localScripts[i]));
+            fs.unlinkSync(join(dirPath, localScripts[i]));
         }
     });
 
@@ -53,11 +53,6 @@ export async function runService(_port?) {
     service.use(bodyParser.json());
     service.use(bodyParser.urlencoded({extended: true}));
 
-    const scriptToExecutePath = getDirPath(scriptToExecuteDir);
-    if (!fs.existsSync(scriptToExecutePath)) {
-        fs.mkdirSync(scriptToExecutePath);
-    }
-
     service.post('/offchain-resolve/:resolverContractAddress', async (req, res) => {
         const {resolverCalldata, rpcUrl, network, chainId, agent, from, jobAddress, jobId} = req.body;
 
@@ -77,6 +72,7 @@ export async function runService(_port?) {
             return res.send(500, "Content not found in IPFS by hash: " + resolverIpfsHash);
         }
 
+        const scriptToExecutePath = getDirPath(scriptToExecuteDir);
         fs.cpSync(scriptPathByIpfsHash[resolverIpfsHash], `${scriptToExecutePath}/${resolverIpfsHash}.cjs`);
         console.log(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`, 'exists', fs.existsSync(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`));
 
