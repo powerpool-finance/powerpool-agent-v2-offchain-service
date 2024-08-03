@@ -3,6 +3,7 @@ import express from 'express';
 import morgan from 'morgan';
 import * as ethers from 'ethers';
 import {writeScriptsPathToDir, isIpfsHash, getDirPath} from "./helper";
+import { join } from 'path';
 import Ipfs from "./ipfs";
 import fs from "fs";
 import { PassThrough } from 'node:stream';
@@ -15,7 +16,18 @@ const scriptPathByIpfsHash = {};
 export async function runService(_port?) {
     const port = _port || 3423;
 
-    const scriptsBuildDir = 'scriptsBuild', scriptsFetchedDir = 'scriptsFetched';
+    const scriptsBuildDir = 'scriptsBuild', scriptsFetchedDir = 'scriptsFetched', scriptToExecuteDir = 'scriptToExecute';
+
+    [scriptsFetchedDir, scriptToExecuteDir].forEach((scriptDir) => {
+        const dirPath = getDirPath(scriptDir);
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath);
+        }
+        const localScripts = fs.readdirSync(dirPath);
+        for (let i = 0; i < localScripts.length; i++) {
+            fs.unlinkSync(join(dirPath, localScripts[i]));
+        }
+    });
 
     const containers = await docker.listContainers();
     // const ipfsContainer = containers.filter(c => c.Image.indexOf('ipfs') === 0)[0];
@@ -27,7 +39,6 @@ export async function runService(_port?) {
         try {
             await ipfs.init(`http://ipfs-service`);
             await writeScriptsPathToDir(ipfs, scriptPathByIpfsHash, scriptsBuildDir);
-            await writeScriptsPathToDir(ipfs, scriptPathByIpfsHash, scriptsFetchedDir);
             ipfsError = null;
         } catch (e) {
             ipfsError = e;
@@ -41,15 +52,6 @@ export async function runService(_port?) {
     service.use(morgan('combined'));
     service.use(bodyParser.json());
     service.use(bodyParser.urlencoded({extended: true}));
-
-    const scriptToExecutePath = getDirPath('scriptToExecute');
-    if (!fs.existsSync(scriptToExecutePath)) {
-        fs.mkdirSync(scriptToExecutePath);
-    }
-    const localScripts = fs.readdirSync(scriptToExecutePath);
-    for (let i = 0; i < localScripts.length; i++) {
-        fs.unlinkSync(`${scriptToExecutePath}/${localScripts[i]}`);
-    }
 
     service.post('/offchain-resolve/:resolverContractAddress', async (req, res) => {
         const {resolverCalldata, rpcUrl, network, chainId, agent, from, jobAddress, jobId} = req.body;
@@ -70,6 +72,7 @@ export async function runService(_port?) {
             return res.send(500, "Content not found in IPFS by hash: " + resolverIpfsHash);
         }
 
+        const scriptToExecutePath = getDirPath(scriptToExecuteDir);
         fs.cpSync(scriptPathByIpfsHash[resolverIpfsHash], `${scriptToExecutePath}/${resolverIpfsHash}.cjs`);
         console.log(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`, 'exists', fs.existsSync(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`));
 

@@ -15,6 +15,7 @@ services:
       - "8099:8099"
     environment:
       NODE_ENV: ${NODE_ENV}
+    profiles: []
 
   offchain-service:
     container_name: offchain-service
@@ -34,6 +35,7 @@ services:
       - "3423:3423"
     environment:
       COMPOSE_MODE: 1
+    profiles: [ipfs-test]
 
   ipfs:
     image: "ipfs/kubo:v0.29.0"
@@ -55,6 +57,7 @@ services:
     volumes:
       - "${IPFS_EXPORT:-./ipfs-export}:/export"
       - "${IPFS_DATA:-./ipfs-data}:/data/ipfs"
+    profiles: [ipfs-test]
 
   temp-executor:
     image: node:18-alpine

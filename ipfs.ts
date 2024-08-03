@@ -55,7 +55,7 @@ export default class Ipfs {
             }
             return response.data.Hash; // The IPFS hash of the added file
         } catch (error) {
-            console.error('Error adding file to IPFS:', error);
+            console.error('Error adding file to IPFS:', error.message);
             throw error;
         }
         // const {data: {result: blockNumber}} = await fetch(
