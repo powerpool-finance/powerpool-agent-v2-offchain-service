@@ -3,7 +3,7 @@ import fs from "fs";
 import BN from 'bn.js';
 
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
 import Ipfs from "./ipfs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,7 +83,7 @@ function basePath() {
 }
 
 function getDirPath(dirName) {
-    return dirName === 'scriptsBuild' ? `${__dirname}/${dirName}` : basePath() + `/${dirName}`;
+    return join(basePath(), `${dirName}`);
 }
 
 async function writeScriptsPathToDir(ipfs: Ipfs, scriptPathByIpfsHash, dirName) {
