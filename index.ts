@@ -29,6 +29,8 @@ export async function runService(_port?) {
         }
     });
 
+
+
     const containers = await docker.listContainers();
     // const ipfsContainer = containers.filter(c => c.Image.indexOf('ipfs') === 0)[0];
     // console.log('ipfsContainer', JSON.stringify(ipfsContainer, null, 2));
@@ -122,10 +124,15 @@ export async function runService(_port?) {
                     try {
                         const {State} = await container.inspect();
                         if (State.Running) {
-                            container.kill();
+                            await container.stop({t: 0});
                         }
                     } catch (e) {
-                        console.error('Container kills error', e);
+                        console.error('Container stop error', e);
+                    }
+                    try {
+                        await docker.pruneContainers();
+                    } catch (e) {
+                        console.error('Container pruneContainers error', e);
                     }
                     resolve(null);
                 }, 100);
