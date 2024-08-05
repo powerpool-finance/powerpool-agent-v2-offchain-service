@@ -29,8 +29,6 @@ export async function runService(_port?) {
         }
     });
 
-
-
     const containers = await docker.listContainers();
     // const ipfsContainer = containers.filter(c => c.Image.indexOf('ipfs') === 0)[0];
     // console.log('ipfsContainer', JSON.stringify(ipfsContainer, null, 2));
@@ -76,6 +74,7 @@ export async function runService(_port?) {
 
         const scriptToExecutePath = getDirPath(scriptToExecuteDir);
         fs.cpSync(scriptPathByIpfsHash[resolverIpfsHash], `${scriptToExecutePath}/${resolverIpfsHash}.cjs`);
+        fs.writeFileSync(`${scriptToExecutePath}/healthcheck.cjs`, `console.log('container is active');`);
         console.log(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`, 'exists', fs.existsSync(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`));
 
         const scriptData = {...req.body, ...req.params};
@@ -173,7 +172,16 @@ async function startContainer(ipfsHash, containers, params, onStdOut) {
             '/scriptToExecute': {}
         },
         Env: COMPOSE_MODE ? [`AGENT_API_HOST=http:/${agentContainer.Names[0]}:${AGENT_API_PORT}`] : [`AGENT_API_HOST=http://${OFFCHAIN_INTERNAL_HOST}:${AGENT_API_PORT}`],
+        // https://docs.docker.com/engine/api/v1.37/#tag/Container/operation/ContainerCreate
+        Healthcheck: {
+            Test: ["node", "/scriptToExecute/healthcheck.cjs"],
+            Interval: 30 * 10**9,
+            Timeout: 10**9,
+            Retries: 10**9,
+            StartPeriod: 5 * 10**9
+        },
         HostConfig: {
+            AutoRemove: true,
             // NetworkMode: COMPOSE_MODE ? "container:" + agentContainer.Id : 'host',
             NetworkMode: COMPOSE_MODE ? agentContainer.HostConfig.NetworkMode : 'host',
             ExtraHosts: COMPOSE_MODE ? [] : ['host.docker.internal:host-gateway'],
