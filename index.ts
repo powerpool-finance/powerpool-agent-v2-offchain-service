@@ -169,7 +169,6 @@ async function startContainer(ipfsHash, containers, params, onStdOut) {
     stdoutStream.on('data', d => onStdOut(d));
     stderrStream.on('data', d => onStdOut(null, d));
     const scriptToExecutePath = COMPOSE_MODE ? serviceContainer.Mounts.filter(m => m.Destination === '/scriptToExecute')[0].Source : getDirPath('scriptToExecute');
-    console.log('serviceContainer.Mounts', serviceContainer.Mounts);
     console.log('scriptToExecutePath', scriptToExecutePath);
 
     const container = await docker.createContainer({
@@ -198,6 +197,7 @@ async function startContainer(ipfsHash, containers, params, onStdOut) {
                     Type: 'bind',
                     Name: 'scriptToExecute',
                     Source: scriptToExecutePath,
+                    Destination: '/scriptToExecute',
                     Target: '/scriptToExecute',
                     ReadOnly: true,
                 },
