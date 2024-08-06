@@ -75,7 +75,11 @@ export async function runService(_port?) {
         const scriptToExecutePath = getDirPath(scriptToExecuteDir);
         fs.cpSync(scriptPathByIpfsHash[resolverIpfsHash], `${scriptToExecutePath}/${resolverIpfsHash}.cjs`);
         fs.writeFileSync(`${scriptToExecutePath}/healthcheck.cjs`, `console.log('container is active');`);
-        console.log(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`, 'exists', fs.existsSync(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`));
+
+        function checksScriptToExecuteExists(label) {
+            console.log(label, `${scriptToExecutePath}/${resolverIpfsHash}.cjs`, 'exists', fs.existsSync(`${scriptToExecutePath}/${resolverIpfsHash}.cjs`));
+        }
+        checksScriptToExecuteExists('start');
 
         const scriptData = {...req.body, ...req.params};
 
@@ -84,6 +88,9 @@ export async function runService(_port?) {
         console.log('startContainer, maxExecutionSeconds:', maxExecutionSeconds);
 
         const {container} = await startContainer(resolverIpfsHash, containers, scriptData,  (chunk: Buffer, error: Buffer) => {
+            if (finished) {
+                return;
+            }
             if (error) {
                 executionFinished();
                 console.log('stdError:', error.toString());
@@ -115,6 +122,7 @@ export async function runService(_port?) {
 
         async function executionFinished() {
             console.log('executionFinished, jobAddress:', jobAddress);
+            checksScriptToExecuteExists('finish');
             finished = true;
             overTimeout && clearTimeout(overTimeout);
 
@@ -161,8 +169,7 @@ async function startContainer(ipfsHash, containers, params, onStdOut) {
     stdoutStream.on('data', d => onStdOut(d));
     stderrStream.on('data', d => onStdOut(null, d));
     const scriptToExecutePath = COMPOSE_MODE ? serviceContainer.Mounts.filter(m => m.Destination === '/scriptToExecute')[0].Source : getDirPath('scriptToExecute');
-    // console.log('serviceContainer.Mounts', serviceContainer.Mounts);
-    // console.log('scriptToExecutePath', scriptToExecutePath);
+    console.log('scriptToExecutePath', scriptToExecutePath);
 
     const container = await docker.createContainer({
         Image: 'node:18-alpine',
@@ -190,6 +197,7 @@ async function startContainer(ipfsHash, containers, params, onStdOut) {
                     Type: 'bind',
                     Name: 'scriptToExecute',
                     Source: scriptToExecutePath,
+                    Destination: '/scriptToExecute',
                     Target: '/scriptToExecute',
                     ReadOnly: true,
                 },
