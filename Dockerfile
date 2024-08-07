@@ -6,7 +6,7 @@ COPY package*.json ./
 COPY yarn.lock ./
 COPY . .
 
-RUN yarn && yarn build
+RUN yarn && yarn build && (mkdir /scriptsBuild; mv scriptsBuild/* /scriptsBuild/)
 
 EXPOSE 3423
 
