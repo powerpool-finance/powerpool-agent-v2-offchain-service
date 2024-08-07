@@ -71,6 +71,7 @@ export default class Ipfs {
 
     async downloadFile(dirName, ipfsHash) {
         const path = `${dirName}/${ipfsHash}.cjs`;
+        console.log('downloadFile path', path);
         const writer = fs.createWriteStream(path);
         return axios
             .post(`${this.gatewayUrl}:5001/api/v0/cat?arg=${ipfsHash}`, {}, {
