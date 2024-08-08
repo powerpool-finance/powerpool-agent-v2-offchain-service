@@ -35,8 +35,8 @@ describe('Container Execution', function () {
         console.log('offchainUrl', offchainUrl);
 
         const result = await axios.post(offchainUrl, {
-            resolverCalldata: ethers.hexlify(ethers.toUtf8Bytes('bafkreicg6im5dugbrrh2v5vib25unpowbts5gwlmzwnzbplrwrsxldgvfe')),
-            rpcUrl: `http://127.0.0.1:${rpcMockServicePort}/`,
+            resolverCalldata: ethers.hexlify(ethers.toUtf8Bytes('bafkreig3k5d6uhom5gc5mmzl4bdss4ya3zrcqu5x7uthphqzd5jowmnnr4')),
+            rpcUrl: `http://127.0.0.1:${offchainServicePort}/`,
             network: null,
             chainId: null,
             agent: null,

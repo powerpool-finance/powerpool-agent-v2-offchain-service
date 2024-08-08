@@ -65,7 +65,11 @@ export async function runService(_port?) {
 
         console.log('1 scriptPathByIpfsHash[resolverIpfsHash]', scriptPathByIpfsHash[resolverIpfsHash]);
         if (!scriptPathByIpfsHash[resolverIpfsHash]) {
-            scriptPathByIpfsHash[resolverIpfsHash] = await ipfs.downloadFile(scriptsFetchedDir, resolverIpfsHash);
+            try {
+                scriptPathByIpfsHash[resolverIpfsHash] = await ipfs.downloadFile(getDirPath(scriptsFetchedDir), resolverIpfsHash);
+            } catch (e) {
+                return res.send(500, "Content cannot be fetched from IPFS: " + e.message);
+            }
         }
         console.log('2 scriptPathByIpfsHash[resolverIpfsHash]', scriptPathByIpfsHash[resolverIpfsHash]);
         if (!scriptPathByIpfsHash[resolverIpfsHash]) {
